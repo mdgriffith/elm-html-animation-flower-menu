@@ -1,21 +1,18 @@
 module Main exposing (..)
 
-{-| Recreating the menu found here: https://github.com/nashvail/ReactPathMenu
+{-| Recreating the menu found here: <https://github.com/nashvail/ReactPathMenu>
 Make using:
-   elm-make FlowerMenu.elm --output elm.js
-   open index.html
-
-
+elm-make FlowerMenu.elm --output elm.js
+open index.html
 -}
 
-import Time exposing (second, Time)
-import Html.App
+import Animation exposing (px, turn)
+import Animation.Messenger
+import Browser
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Animation exposing (turn, px)
-import Animation.Messenger
-import Color
+import Time exposing (millisToPosix)
 
 
 type Msg
@@ -50,68 +47,47 @@ onSubmenuStyle fn submenus =
         submenus
 
 
+animateMainMenu : Float -> Animation.Messenger.State msg -> Animation.Messenger.State msg
+animateMainMenu angle menu =
+    Animation.interrupt
+        [ Animation.to
+            [ Animation.rotate (turn angle) ]
+        ]
+        menu
+
+
+animateSubMenuItem : Float -> Int -> Animation.State -> Animation.State
+animateSubMenuItem position index style =
+    Animation.interrupt
+        [ Animation.wait (millisToPosix (index * 50))
+        , Animation.to [ Animation.translate (px 0) (px position) ]
+        ]
+        style
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update message model =
     case message of
         Toggle ->
             if model.open then
                 -- Close the menu
-                let
-                    newMenu =
-                        Animation.interrupt
-                            [ Animation.to
-                                [ Animation.rotate (turn -0.125)
-                                ]
-                            ]
-                            model.menu
+                ( { model
+                    | open = False
+                    , submenus = onSubmenuStyle (animateSubMenuItem 0) model.submenus
+                    , menu = animateMainMenu -0.125 model.menu
+                  }
+                , Cmd.none
+                )
 
-                    newSubmenus =
-                        onSubmenuStyle
-                            (\i style ->
-                                Animation.interrupt
-                                    [ Animation.wait (toFloat i * 5.0e-2 * second)
-                                    , Animation.to [ Animation.translate (px 0) (px 0) ]
-                                    ]
-                                    style
-                            )
-                            model.submenus
-                in
-                    ( { model
-                        | open = False
-                        , submenus = newSubmenus
-                        , menu = newMenu
-                      }
-                    , Cmd.none
-                    )
             else
-                -- open the menu
-                let
-                    newMenu =
-                        Animation.interrupt
-                            [ Animation.to
-                                [ Animation.rotate (turn 0)
-                                ]
-                            ]
-                            model.menu
-
-                    newSubmenus =
-                        onSubmenuStyle
-                            (\i style ->
-                                Animation.interrupt
-                                    [ Animation.wait (toFloat i * 5.0e-2 * second)
-                                    , Animation.to [ Animation.translate (px 0) (px 100) ]
-                                    ]
-                                    style
-                            )
-                            model.submenus
-                in
-                    ( { model
-                        | open = True
-                        , submenus = newSubmenus
-                        , menu = newMenu
-                      }
-                    , Cmd.none
-                    )
+                -- Open the menu
+                ( { model
+                    | open = True
+                    , submenus = onSubmenuStyle (animateSubMenuItem 100) model.submenus
+                    , menu = animateMainMenu 0 model.menu
+                  }
+                , Cmd.none
+                )
 
         ClickSubmenu i ->
             let
@@ -126,19 +102,19 @@ update message model =
                         [ Animation.to
                             [ Animation.opacity 1
                             ]
-                        , Animation.wait (1 * second)
+                        , Animation.wait (millisToPosix 1000)
                         , Animation.to
                             [ Animation.opacity 0
                             ]
                         ]
-                        (snd model.message)
+                        (Tuple.second model.message)
             in
-                ( { model
-                    | message =
-                        ( msg, newMessageAnim )
-                  }
-                , Cmd.none
-                )
+            ( { model
+                | message =
+                    ( msg, newMessageAnim )
+              }
+            , Cmd.none
+            )
 
         Animate time ->
             let
@@ -153,15 +129,15 @@ update message model =
                         model.submenus
 
                 messageAnim =
-                    Animation.update time (snd model.message)
+                    Animation.update time (Tuple.second model.message)
             in
-                ( { model
-                    | menu = newMenu
-                    , submenus = newSubmenus
-                    , message = ( fst model.message, messageAnim )
-                  }
-                , menuCmds
-                )
+            ( { model
+                | menu = newMenu
+                , submenus = newSubmenus
+                , message = ( Tuple.first model.message, messageAnim )
+              }
+            , menuCmds
+            )
 
 
 view : Model -> Html Msg
@@ -177,17 +153,17 @@ view model =
 
         message =
             div
-                (Animation.render (snd model.message)
+                (Animation.render (Tuple.second model.message)
                     ++ [ class "message"
                        ]
                 )
-                [ text (fst model.message) ]
+                [ text (Tuple.first model.message) ]
     in
-        div
-            [ class "main-button"
-            , onClick Toggle
-            ]
-            (icon :: message :: List.indexedMap viewSubmenu model.submenus)
+    div
+        [ class "main-button"
+        , onClick Toggle
+        ]
+        (icon :: message :: List.indexedMap viewSubmenu model.submenus)
 
 
 viewSubmenu : Int -> Submenu -> Html Msg
@@ -218,12 +194,13 @@ makeSubmenu i icon =
                 angle =
                     (toFloat i * fanAngle) + adjustment
             in
-                [ Animation.rotate (turn angle)
-                , Animation.translate (px 0) (px 0)
-                , Animation.rotate (turn (-1 * angle))
-                , Animation.backgroundColor Color.lightGrey
-                  -- Counter rotation so the icon is upright
-                ]
+            [ Animation.rotate (turn angle)
+            , Animation.translate (px 0) (px 0)
+            , Animation.rotate (turn (-1 * angle))
+            , Animation.backgroundColor (Animation.Color 238 238 236 1)
+
+            -- Counter rotation so the icon is upright
+            ]
     }
 
 
@@ -254,9 +231,10 @@ init =
     )
 
 
+main : Program () Model Msg
 main =
-    Html.App.program
-        { init = init
+    Browser.element
+        { init = \flags -> init
         , view = view
         , update = update
         , subscriptions = subscriptions
@@ -264,12 +242,11 @@ main =
 
 
 {-| We have two subscriptions to our animations because we're using both Animation.State and Animation.Messenger.State, which can't both live in the same list.
-
 -}
 subscriptions model =
     Sub.batch
         [ Animation.subscription Animate
-            (snd model.message :: List.map .style model.submenus)
+            (Tuple.second model.message :: List.map .style model.submenus)
         , Animation.subscription Animate
             [ model.menu ]
         ]

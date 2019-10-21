@@ -1,7 +1,6 @@
 <!doctype html>
 <html>
     <head>
-        <script src="elm.js"></script>
         <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
         <style type="text/css">
@@ -81,7 +80,9 @@
             <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
         <![endif]-->
         <div class="description">
-            <div id="elm"></div>
+            <div id="elm">
+                <div id="app"></div>
+            </div>
             <h1>A Flower Menu</h1>
             <p>This is a recreation of a lovely design for <a href="https://medium.com/@nashvail/a-gentle-introduction-to-react-motion-dc50dd9f2459#.bgck7roe9">a menu made by Nash Vail</a>
             </p>
@@ -93,8 +94,8 @@
 
         </div>
     </body>
-    <script type="text/javascript">
-        var element = document.getElementById("elm");
-        Elm.Main.embed(element);
+    <script src="elm.js"></script>
+    <script>
+        Elm.Main.init({node: document.getElementById("app")});
     </script>
 </html>
